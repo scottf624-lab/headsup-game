@@ -37,7 +37,8 @@ input[type=text].name{width:min(90vw,420px);font-size:1.2em;padding:12px 14px;bo
 button.addp{background:#fff;color:#3b1f8f;font-size:1em;padding:10px 18px}
 #board{width:100%;max-width:520px;margin:16px 0 8px;background:rgba(0,0,0,.25);border-radius:14px;padding:12px 14px}
 #board h2{margin:0 0 6px;font-size:1em;color:#ffd400}
-#record{font-size:1.05em;margin:0 0 10px}
+#record{font-size:1.05em;margin:0 0 4px}
+#global{font-size:.95em;margin:0 0 10px;opacity:.9}
 #rounds{list-style:none;padding:0;margin:0;columns:1;width:100%}
 #rounds li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.12)}
 #rounds .nm{font-weight:700}
@@ -56,6 +57,7 @@ button.sort{background:#fff;color:#3b1f8f;font-size:.9em;padding:8px 14px}
 <div id="board">
 <h2>This phone</h2>
 <p id="record">All-time record: —</p>
+<p id="global">All phones: —</p>
 <button type="button" class="big sort" id="sortBtn">Sort last 10: newest</button>
 <ul id="rounds"></ul>
 </div></section>
@@ -143,7 +145,17 @@ function saveRound(score){
   const rounds=loadRounds();rounds.unshift(row);localStorage.setItem('hu_rounds',JSON.stringify(rounds.slice(0,10)));
   const rec=loadRecord();
   if(!rec||score>rec.score)localStorage.setItem('hu_record',JSON.stringify(row));
-  renderBoard(); renderPlayers();
+  renderBoard(); renderPlayers(); trackGame();
+}
+const STAT='https://abacus.jasoncameron.dev',NS='headsup-fshelps';
+function statGet(k){return fetch(STAT+'/get/'+NS+'/'+k).then(r=>r.json()).then(j=>j.value||0).catch(()=>0)}
+function showGlobal(){Promise.all([statGet('games'),statGet('devices')]).then(([g,d])=>{$('global').textContent='All phones: '+g+' games · '+d+' devices'}).catch(()=>{})}
+async function trackGame(){
+  try{await fetch(STAT+'/hit/'+NS+'/games')}catch(e){}
+  if(!localStorage.getItem('hu_did_counted')){
+    try{const r=await fetch(STAT+'/hit/'+NS+'/devices'); if(r.ok) localStorage.setItem('hu_did_counted','1')}catch(e){}
+  }
+  showGlobal();
 }
 playerName=localStorage.getItem('hu_name')||'';
 if(playerName && !loadPlayers().length) rememberPlayer(playerName);
@@ -156,6 +168,7 @@ $('endPname').addEventListener('keydown',e=>{if(e.key==='Enter')saveNew('endPnam
 $('sortBtn').onclick=()=>{sortPts=!sortPts;renderBoard()};
 renderPlayers();
 renderBoard();
+showGlobal();
 const cats=$('cats');Object.keys(D).concat(['FC Cincinnati Trivia','Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=c==='FC Cincinnati Trivia'?'#F05323':COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
 if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')$('perm').style.display='inline-block';
 $('perm').onclick=async()=>{try{ensureAudio();const r=await DeviceOrientationEvent.requestPermission();$('perm').textContent=r==='granted'?'Tilt Enabled ✔':'Tilt denied – use taps';}catch(e){$('perm').textContent='Tilt unavailable – use taps'}};
