@@ -21,13 +21,28 @@ button.big{border:0;border-radius:14px;padding:14px 26px;font-size:1.2em;font-we
 @media (orientation:portrait){body.playing #landscape{display:flex}}
 textarea{width:100%;max-width:600px;height:40vh;font-size:1em;border-radius:10px;padding:10px}
 ul{columns:2;max-width:700px;width:100%}li{margin:3px 0}.ok{color:#7dff9b}.ps{color:#ffb35c;text-decoration:line-through}
-#perm{display:none}
+input[type=text].name{width:min(90vw,420px);font-size:1.2em;padding:12px 14px;border:0;border-radius:12px;margin:8px 0;text-align:center}
+#board{width:100%;max-width:520px;margin:16px 0 8px;background:rgba(0,0,0,.25);border-radius:14px;padding:12px 14px}
+#board h2{margin:0 0 6px;font-size:1em;color:#ffd400}
+#record{font-size:1.05em;margin:0 0 10px}
+#rounds{list-style:none;padding:0;margin:0;columns:1;width:100%}
+#rounds li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+#rounds .nm{font-weight:700}
+#rounds .sc{color:#ffd400;font-weight:800}
+button.sort{background:#fff;color:#3b1f8f;font-size:.9em;padding:8px 14px}
 </style></head><body>
 <div id="landscape">📱↻<br>Turn your phone sideways (landscape) please!</div>
 <section id="menu" class="screen on"><h1>HEADS UP!</h1>
 <p style="margin:0 0 10px;text-align:center">Pick a deck, hold the phone on your forehead. Tilt <b>down</b> = correct, tilt <b>up</b> = pass. Or tap right/left.</p>
+<input class="name" id="pname" type="text" placeholder="Player name" autocomplete="nickname" maxlength="24">
 <button id="perm" class="big">Enable Tilt Controls</button>
-<div class="grid" id="cats"></div></section>
+<div class="grid" id="cats"></div>
+<div id="board">
+<h2>This phone</h2>
+<p id="record">All-time record: —</p>
+<button type="button" class="big sort" id="sortBtn">Sort last 10: newest</button>
+<ul id="rounds"></ul>
+</div></section>
 <section id="custom" class="screen"><h1>Custom Deck</h1><p>One word or phrase per line (saved on this phone):</p>
 <textarea id="customText"></textarea><div><button class="big" id="saveCustom">Save &amp; Play</button><button class="big" id="backCustom">Back</button></div></section>
 <section id="play" class="screen"><div id="timer"></div><div id="word"></div><div id="hint">Tap right = ✔ correct · Tap left = ✖ pass</div></section>
@@ -44,15 +59,40 @@ const D={
 "90s Throwback":"Tamagotchi,Furby,Pokémon,Game Boy,Nintendo 64,Beanie Babies,Pogs,Slap Bracelet,Walkman,Discman,VHS Tape,Blockbuster,Dial-up Internet,AOL,Pager,Spice Girls,Backstreet Boys,NSYNC,Britney Spears,Macarena,Friends,Seinfeld,Fresh Prince,Full House,Saved by the Bell,Rugrats,Power Rangers,Teenage Mutant Ninja Turtles,Space Jam,Titanic,Jurassic Park,Lion King,Toy Story,Scrunchie,Butterfly Clips,Lisa Frank,Gak,Bop It,Super Soaker,Rollerblades,Tetris,Sonic the Hedgehog,Pokémon Cards,Spice Girls,Hacky Sack"
 };
 const COLORS=["#e6194b","#3cb44b","#f58231","#4363d8","#911eb4","#008080","#c2185b","#795548","#455a64"];
-const $=id=>document.getElementById(id);let deck=[],cards=[],idx=0,res=[],time=60,tmr=null,state="menu",lock=false,neutral=true,wake=null,lastCat=null,ac=null;
+const $=id=>document.getElementById(id);let deck=[],cards=[],idx=0,res=[],time=60,tmr=null,state="menu",lock=false,neutral=true,wake=null,lastCat=null,ac=null,playerName='',sortPts=false;
 function show(s){document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(s).classList.add('on');document.body.classList.toggle('playing',s==='play')}
 function getCustom(){return (localStorage.getItem('hu_custom')||'').split('\n').map(s=>s.trim()).filter(Boolean)}
+function loadRounds(){try{return JSON.parse(localStorage.getItem('hu_rounds')||'[]')}catch(e){return []}}
+function loadRecord(){try{return JSON.parse(localStorage.getItem('hu_record')||'null')}catch(e){return null}}
+function renderBoard(){
+  const rec=loadRecord();
+  $('record').textContent=rec?'All-time record: '+rec.name+' — '+rec.score+' pts ('+(rec.cat||'')+')':'All-time record: —';
+  let rows=loadRounds().slice();
+  if(sortPts)rows.sort((a,b)=>b.score-a.score||b.ts-a.ts);
+  $('rounds').innerHTML=rows.length?rows.map(r=>'<li><span class="nm">'+r.name.replace(/</g,'&lt;')+'</span><span class="sc">'+r.score+'</span></li>').join(''):'<li>No rounds yet</li>';
+  $('sortBtn').textContent=sortPts?'Showing: by points (tap for newest)':'Showing: newest (tap for points)';
+}
+function takeName(){
+  const n=($('pname').value||'').trim()||localStorage.getItem('hu_name')||'';
+  if(!n){alert('Enter a player name first');$('pname').focus();return null}
+  playerName=n.slice(0,24);$('pname').value=playerName;localStorage.setItem('hu_name',playerName);return playerName;
+}
+function saveRound(score){
+  const row={name:playerName||'Player',score,cat:lastCat||'',ts:Date.now()};
+  const rounds=loadRounds();rounds.unshift(row);localStorage.setItem('hu_rounds',JSON.stringify(rounds.slice(0,10)));
+  const rec=loadRecord();
+  if(!rec||score>rec.score)localStorage.setItem('hu_record',JSON.stringify(row));
+  renderBoard();
+}
+$('pname').value=localStorage.getItem('hu_name')||'';
+$('sortBtn').onclick=()=>{sortPts=!sortPts;renderBoard()};
+renderBoard();
 const cats=$('cats');Object.keys(D).concat(['Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
 if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')$('perm').style.display='inline-block';
 $('perm').onclick=async()=>{try{ensureAudio();const r=await DeviceOrientationEvent.requestPermission();$('perm').textContent=r==='granted'?'Tilt Enabled ✔':'Tilt denied – use taps';}catch(e){$('perm').textContent='Tilt unavailable – use taps'}};
 async function askPerm(){if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){try{await DeviceOrientationEvent.requestPermission()}catch(e){}}}
-function pick(c){if(c==='Custom'){$('customText').value=localStorage.getItem('hu_custom')||'';show('custom');return}lastCat=c;start(D[c].split(','))}
-$('saveCustom').onclick=()=>{localStorage.setItem('hu_custom',$('customText').value);const w=getCustom();if(w.length<1){alert('Add some words first!');return}lastCat='Custom';start(w)};
+function pick(c){if(!takeName())return;if(c==='Custom'){$('customText').value=localStorage.getItem('hu_custom')||'';show('custom');return}lastCat=c;start(D[c].split(','))}
+$('saveCustom').onclick=()=>{if(!takeName())return;localStorage.setItem('hu_custom',$('customText').value);const w=getCustom();if(w.length<1){alert('Add some words first!');return}lastCat='Custom';start(w)};
 $('backCustom').onclick=()=>show('menu');
 function shuffle(a){a=[...new Set(a)];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
 function ensureAudio(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}return ac}
@@ -66,7 +106,7 @@ function next(){if(idx>=cards.length){end();return}$('word').textContent=cards[i
 function answer(ok){if(state!=='play'||lock)return;lock=true;res.push({w:cards[idx],ok});const p=$('play');p.classList.add(ok?'flash-g':'flash-o');$('word').textContent=ok?'CORRECT!':'PASS';sfx(ok);
 setTimeout(()=>{p.classList.remove('flash-g','flash-o');idx++;lock=false;if(state==='play')next()},800)}
 function end(){if(state!=='play'&&state!=='count')return;state='end';clearInterval(tmr);beep(300,.6);navigator.vibrate&&navigator.vibrate(300);try{wake&&wake.release();wake=null}catch(e){}
-const c=res.filter(r=>r.ok).length;$('score').textContent='Score: '+c;$('results').innerHTML=res.map(r=>`<li class="${r.ok?'ok':'ps'}">${r.ok?'✔':'✖'} ${r.w.replace(/</g,'&lt;')}</li>`).join('')||'<li>No cards played</li>';show('end')}
+const c=res.filter(r=>r.ok).length;saveRound(c);$('score').textContent=(playerName||'Player')+': '+c;$('results').innerHTML=res.map(r=>`<li class="${r.ok?'ok':'ps'}">${r.ok?'✔':'✖'} ${r.w.replace(/</g,'&lt;')}</li>`).join('')||'<li>No cards played</li>';show('end')}
 $('play').addEventListener('click',e=>{if(state==='play')answer(e.clientX>innerWidth/2)});
 window.addEventListener('deviceorientation',e=>{if(state!=='play'||e.gamma==null||e.beta==null)return;
 const ag=Math.abs(e.gamma);
