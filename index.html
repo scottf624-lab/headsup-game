@@ -66,10 +66,14 @@ setTimeout(()=>{p.classList.remove('flash-g','flash-o');idx++;lock=false;if(stat
 function end(){if(state!=='play'&&state!=='count')return;state='end';clearInterval(tmr);beep(300,.6);navigator.vibrate&&navigator.vibrate(300);try{wake&&wake.release();wake=null}catch(e){}
 const c=res.filter(r=>r.ok).length;$('score').textContent='Score: '+c;$('results').innerHTML=res.map(r=>`<li class="${r.ok?'ok':'ps'}">${r.ok?'✔':'✖'} ${r.w.replace(/</g,'&lt;')}</li>`).join('')||'<li>No cards played</li>';show('end')}
 $('play').addEventListener('click',e=>{if(state==='play')answer(e.clientX>innerWidth/2)});
-window.addEventListener('deviceorientation',e=>{if(state!=='play'||e.gamma==null)return;const g=e.gamma;// landscape on forehead: gamma ~ ±90 upright
-const a=Math.abs(g);if(a>65){neutral=true;return}if(!neutral||a>35)return;
-// near 0 means face tipped up or down; use beta sign to tell which
-const flip=Math.abs(e.beta)>90;const down=(g>0)!==flip;neutral=false;answer(down)});
+window.addEventListener('deviceorientation',e=>{if(state!=='play'||e.gamma==null||e.beta==null)return;
+const ag=Math.abs(e.gamma);
+// On forehead in landscape, |gamma| is high (~70–90). Both nod-down and tilt-up
+// drop |gamma| toward 0 — so gamma sign cannot tell them apart (old bug: both PASS).
+// Face-up (sky) => |beta|~0 => PASS. Face-down (floor) => |beta|~180 => CORRECT.
+if(ag>55){neutral=true;return}
+if(!neutral||ag>28)return;
+neutral=false;answer(Math.abs(e.beta)>=90)});
 $('again').onclick=()=>pick(lastCat==='Custom'?'Custom':lastCat);$('home').onclick=()=>show('menu');
 document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&state==='play'&&navigator.wakeLock){try{wake=await navigator.wakeLock.request('screen')}catch(e){}}});
 </script></body></html>
