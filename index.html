@@ -22,6 +22,13 @@ button.big{border:0;border-radius:14px;padding:14px 26px;font-size:1.2em;font-we
 textarea{width:100%;max-width:600px;height:40vh;font-size:1em;border-radius:10px;padding:10px}
 ul{columns:2;max-width:700px;width:100%}li{margin:3px 0}.ok{color:#7dff9b}.ps{color:#ffb35c;text-decoration:line-through}
 input[type=text].name{width:min(90vw,420px);font-size:1.2em;padding:12px 14px;border:0;border-radius:12px;margin:8px 0;text-align:center}
+.who-label{margin:10px 0 4px;font-weight:800}
+.plist{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-width:520px;margin:4px 0 8px}
+.pchip{border:0;border-radius:999px;padding:10px 16px;font-size:1em;font-weight:800;background:rgba(255,255,255,.18);color:#fff;cursor:pointer}
+.pchip.on{background:#ffd400;color:#3b1f8f}
+.addwrap{display:none;flex-direction:column;align-items:center;width:100%}
+.addwrap.on{display:flex}
+button.addp{background:#fff;color:#3b1f8f;font-size:1em;padding:10px 18px}
 #board{width:100%;max-width:520px;margin:16px 0 8px;background:rgba(0,0,0,.25);border-radius:14px;padding:12px 14px}
 #board h2{margin:0 0 6px;font-size:1em;color:#ffd400}
 #record{font-size:1.05em;margin:0 0 10px}
@@ -34,7 +41,10 @@ button.sort{background:#fff;color:#3b1f8f;font-size:.9em;padding:8px 14px}
 <div id="landscape">📱↻<br>Turn your phone sideways (landscape) please!</div>
 <section id="menu" class="screen on"><h1>HEADS UP!</h1>
 <p style="margin:0 0 10px;text-align:center">Pick a deck, hold the phone on your forehead. Tilt <b>down</b> = correct, tilt <b>up</b> = pass. Or tap right/left.</p>
-<input class="name" id="pname" type="text" placeholder="Player name" autocomplete="nickname" maxlength="24">
+<p class="who-label">Who's playing?</p>
+<div class="plist" id="menuPlayers"></div>
+<div class="addwrap" id="menuAddWrap"><input class="name" id="pname" type="text" placeholder="New player name" autocomplete="nickname" maxlength="24"><button type="button" class="big" id="saveMenuName">Save player</button></div>
+<button type="button" class="big addp" id="addMenu">+ New player</button>
 <button id="perm" class="big">Enable Tilt Controls</button>
 <div class="grid" id="cats"></div>
 <div id="board">
@@ -46,7 +56,12 @@ button.sort{background:#fff;color:#3b1f8f;font-size:.9em;padding:8px 14px}
 <section id="custom" class="screen"><h1>Custom Deck</h1><p>One word or phrase per line (saved on this phone):</p>
 <textarea id="customText"></textarea><div><button class="big" id="saveCustom">Save &amp; Play</button><button class="big" id="backCustom">Back</button></div></section>
 <section id="play" class="screen"><div id="timer"></div><div id="word"></div><div id="hint">Tap right = ✔ correct · Tap left = ✖ pass</div></section>
-<section id="end" class="screen"><h1 id="score"></h1><ul id="results"></ul><div><button class="big" id="again">Play Again</button><button class="big" id="home">Categories</button></div></section>
+<section id="end" class="screen"><h1 id="score"></h1><ul id="results"></ul>
+<p class="who-label">Who's next?</p>
+<div class="plist" id="endPlayers"></div>
+<div class="addwrap" id="endAddWrap"><input class="name" id="endPname" type="text" placeholder="New player name" maxlength="24"><button type="button" class="big" id="saveEndName">Save player</button></div>
+<button type="button" class="big addp" id="addEnd">+ New player</button>
+<div><button class="big" id="again">Play Again</button><button class="big" id="home">Categories</button></div></section>
 <script>
 const D={
 "Animals":"Dog,Cat,Elephant,Giraffe,Kangaroo,Penguin,Lion,Tiger,Zebra,Monkey,Gorilla,Panda,Koala,Sloth,Octopus,Shark,Dolphin,Whale,Eagle,Owl,Parrot,Flamingo,Snake,Crocodile,Frog,Turtle,Rabbit,Squirrel,Hedgehog,Bat,Camel,Horse,Cow,Pig,Chicken,Duck,Goat,Sheep,Bear,Wolf,Fox,Deer,Moose,Raccoon,Peacock,Jellyfish,Lobster,Butterfly,Bee,Spider",
@@ -73,20 +88,66 @@ function renderBoard(){
   $('rounds').innerHTML=rows.length?rows.map(r=>'<li><span class="nm">'+r.name.replace(/</g,'&lt;')+'</span><span class="sc">'+r.score+'</span></li>').join(''):'<li>No rounds yet</li>';
   $('sortBtn').textContent=sortPts?'Showing: by points (tap for newest)':'Showing: newest (tap for points)';
 }
+function loadPlayers(){try{return JSON.parse(localStorage.getItem('hu_players')||'[]')}catch(e){return []}}
+function hideAdds(){$('menuAddWrap').classList.remove('on');$('endAddWrap').classList.remove('on')}
+function renderPlayers(){
+  const list=loadPlayers();
+  ['menuPlayers','endPlayers'].forEach(id=>{
+    const el=$(id); if(!el)return; el.innerHTML='';
+    list.forEach(n=>{
+      const b=document.createElement('button');
+      b.type='button'; b.className='pchip'+(n===playerName?' on':'');
+      b.textContent=n;
+      b.onclick=()=>{rememberPlayer(n); hideAdds()};
+      el.appendChild(b);
+    });
+  });
+  if(!list.length)$('menuAddWrap').classList.add('on');
+}
+function rememberPlayer(name){
+  name=(name||'').trim().slice(0,24); if(!name)return null;
+  playerName=name; localStorage.setItem('hu_name',name);
+  const p=loadPlayers().filter(n=>n.toLowerCase()!==name.toLowerCase());
+  p.unshift(name); localStorage.setItem('hu_players',JSON.stringify(p.slice(0,8)));
+  renderPlayers(); return playerName;
+}
 function takeName(){
-  const n=($('pname').value||'').trim()||localStorage.getItem('hu_name')||'';
-  if(!n){alert('Enter a player name first');$('pname').focus();return null}
-  playerName=n.slice(0,24);$('pname').value=playerName;localStorage.setItem('hu_name',playerName);return playerName;
+  if(playerName) return playerName;
+  const n=($('pname').value||'').trim();
+  if(n) return rememberPlayer(n);
+  alert('Pick or add a player first');
+  show('menu'); $('menuAddWrap').classList.add('on'); $('pname').focus();
+  return null;
+}
+function addPlayer(which){
+  hideAdds();
+  const wrap=$(which==='end'?'endAddWrap':'menuAddWrap');
+  const inp=$(which==='end'?'endPname':'pname');
+  wrap.classList.add('on'); inp.value=''; inp.focus();
+}
+function saveNew(inpId){
+  const n=$(inpId).value.trim();
+  if(!n){alert('Enter a player name'); $(inpId).focus(); return}
+  rememberPlayer(n); hideAdds();
 }
 function saveRound(score){
+  rememberPlayer(playerName||'Player');
   const row={name:playerName||'Player',score,cat:lastCat||'',ts:Date.now()};
   const rounds=loadRounds();rounds.unshift(row);localStorage.setItem('hu_rounds',JSON.stringify(rounds.slice(0,10)));
   const rec=loadRecord();
   if(!rec||score>rec.score)localStorage.setItem('hu_record',JSON.stringify(row));
-  renderBoard();
+  renderBoard(); renderPlayers();
 }
-$('pname').value=localStorage.getItem('hu_name')||'';
+playerName=localStorage.getItem('hu_name')||'';
+if(playerName && !loadPlayers().length) rememberPlayer(playerName);
+$('addMenu').onclick=()=>addPlayer('menu');
+$('addEnd').onclick=()=>addPlayer('end');
+$('saveMenuName').onclick=()=>saveNew('pname');
+$('saveEndName').onclick=()=>saveNew('endPname');
+$('pname').addEventListener('keydown',e=>{if(e.key==='Enter')saveNew('pname')});
+$('endPname').addEventListener('keydown',e=>{if(e.key==='Enter')saveNew('endPname')});
 $('sortBtn').onclick=()=>{sortPts=!sortPts;renderBoard()};
+renderPlayers();
 renderBoard();
 const cats=$('cats');Object.keys(D).concat(['Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
 if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')$('perm').style.display='inline-block';
