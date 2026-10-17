@@ -14,6 +14,11 @@ h1{color:#ffd400;margin:8px 0;font-size:2.2em;text-shadow:3px 3px 0 #000}
 button.big{border:0;border-radius:14px;padding:14px 26px;font-size:1.2em;font-weight:bold;background:#ffd400;color:#3b1f8f;margin:6px;cursor:pointer}
 #play{justify-content:center;padding:0}
 #word{font-size:min(16vw,22vh);font-weight:900;text-align:center;padding:0 4vw;line-height:1.05;text-shadow:4px 4px 0 rgba(0,0,0,.4)}
+#word.trivia{font-size:1em;padding:6vh 4vw 12vh;text-shadow:none;display:flex;flex-direction:column;justify-content:center;gap:3vh;width:100%}
+#word .lbl{display:block;font-size:min(4.2vw,2.8vh);font-weight:800;letter-spacing:.14em;text-transform:uppercase;opacity:.8;margin-bottom:.2vh}
+#word .val{font-weight:900;line-height:1.05;text-shadow:4px 4px 0 rgba(0,0,0,.4)}
+#word .say .val{font-size:min(14vw,20vh)}
+#word .ans .val{font-size:min(10vw,13vh);color:#ffd400}
 #timer{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:1.6em;font-weight:bold}
 #hint{position:absolute;bottom:10px;width:100%;text-align:center;opacity:.7;font-size:.9em}
 .flash-g{background:#1fb84a!important}.flash-o{background:#ff8a00!important}
@@ -74,6 +79,7 @@ const D={
 "90s Throwback":"Tamagotchi,Furby,Pokémon,Game Boy,Nintendo 64,Beanie Babies,Pogs,Slap Bracelet,Walkman,Discman,VHS Tape,Blockbuster,Dial-up Internet,AOL,Pager,Spice Girls,Backstreet Boys,NSYNC,Britney Spears,Macarena,Friends,Seinfeld,Fresh Prince,Full House,Saved by the Bell,Rugrats,Power Rangers,Teenage Mutant Ninja Turtles,Space Jam,Titanic,Jurassic Park,Lion King,Toy Story,Scrunchie,Butterfly Clips,Lisa Frank,Gak,Bop It,Super Soaker,Rollerblades,Tetris,Sonic the Hedgehog,Pokémon Cards,Spice Girls,Hacky Sack",
 "Video Games":"Minecraft,Roblox,Fortnite,Mario Kart,The Legend of Zelda,Pokémon,Super Mario,Animal Crossing,Super Smash Bros,Among Us,Fall Guys,Rocket League,FIFA,NBA 2K,Just Dance,Wii Sports,Tetris,Pac-Man,Sonic the Hedgehog,Kirby,Donkey Kong,Splatoon,Overwatch,Valorant,Apex Legends,Clash Royale,Brawl Stars,Candy Crush,Subway Surfers,Temple Run,Stardew Valley,Terraria,The Sims,Five Nights at Freddy's,Geometry Dash,Crossy Road,Angry Birds,Fruit Ninja,Goat Simulator,Portal,Halo,Spider-Man,Mario Party,Luigi's Mansion,Hollow Knight,Banjo-Kazooie,Heads Up"
 };
+const FCC=[{name:"Alvas Powell",num:"2"},{name:"Tyrell Malacia",num:"3"},{name:"Nick Hagglund",num:"4"},{name:"Obinna Nwobodo",num:"5"},{name:"Julian Malatini",num:"6"},{name:"Kévin Denkey",num:"9"},{name:"Evander",num:"10"},{name:"Samuel Gidi",num:"11"},{name:"Miles Robinson",num:"12"},{name:"Evan Louro",num:"13"},{name:"Teenage Hadebe",num:"15"},{name:"Tom Barlow",num:"16"},{name:"Kenji Mboma Dem",num:"17"},{name:"Roman Celentano",num:"18"},{name:"Stefan Chirila",num:"19"},{name:"Pavel Bucha",num:"20"},{name:"Gerardo Valenzuela",num:"22"},{name:"David Douděra",num:"23"},{name:"Kyle Smith",num:"24"},{name:"Tah Brian Anunga",num:"27"},{name:"Ademar Chávez",num:"30"},{name:"Ender Echenique",num:"66"},{name:"Andrei Chirila",num:"88"},{name:"Connor Dale",num:"89"},{name:"Fabian Mrozek",num:"93"},{name:"Ayoub Jabbari",num:"99"}];
 const COLORS=["#e6194b","#3cb44b","#f58231","#4363d8","#911eb4","#008080","#c2185b","#795548","#455a64"];
 const $=id=>document.getElementById(id);let deck=[],cards=[],idx=0,res=[],time=60,tmr=null,state="menu",lock=false,neutral=true,wake=null,lastCat=null,ac=null,playerName='',sortPts=false;
 function show(s){document.querySelectorAll('.screen').forEach(e=>e.classList.remove('on'));$(s).classList.add('on');document.body.classList.toggle('playing',s==='play')}
@@ -149,11 +155,11 @@ $('endPname').addEventListener('keydown',e=>{if(e.key==='Enter')saveNew('endPnam
 $('sortBtn').onclick=()=>{sortPts=!sortPts;renderBoard()};
 renderPlayers();
 renderBoard();
-const cats=$('cats');Object.keys(D).concat(['Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
+const cats=$('cats');Object.keys(D).concat(['FC Cincinnati Trivia','Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=c==='FC Cincinnati Trivia'?'#F05323':COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
 if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')$('perm').style.display='inline-block';
 $('perm').onclick=async()=>{try{ensureAudio();const r=await DeviceOrientationEvent.requestPermission();$('perm').textContent=r==='granted'?'Tilt Enabled ✔':'Tilt denied – use taps';}catch(e){$('perm').textContent='Tilt unavailable – use taps'}};
 async function askPerm(){if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){try{await DeviceOrientationEvent.requestPermission()}catch(e){}}}
-function pick(c){if(!takeName())return;if(c==='Custom'){$('customText').value=localStorage.getItem('hu_custom')||'';show('custom');return}lastCat=c;start(D[c].split(','))}
+function pick(c){if(!takeName())return;if(c==='Custom'){$('customText').value=localStorage.getItem('hu_custom')||'';show('custom');return}lastCat=c;start(c==='FC Cincinnati Trivia'?FCC:D[c].split(','))}
 $('saveCustom').onclick=()=>{if(!takeName())return;localStorage.setItem('hu_custom',$('customText').value);const w=getCustom();if(w.length<1){alert('Add some words first!');return}lastCat='Custom';start(w)};
 $('backCustom').onclick=()=>show('menu');
 function shuffle(a){a=[...new Set(a)];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
@@ -162,10 +168,15 @@ function beep(f,d,type){try{const ctx=ensureAudio();if(!ctx)return;const o=ctx.c
 function sfx(ok){if(ok){beep(660,.12,'sine');setTimeout(()=>beep(990,.22,'sine'),90);navigator.vibrate&&navigator.vibrate([40,30,90])}else{beep(220,.18,'square');setTimeout(()=>beep(160,.32,'square'),140);navigator.vibrate&&navigator.vibrate([180,60,180])}}
 async function start(words){askPerm();ensureAudio();beep(1,.01);try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
 try{if(screen.orientation&&screen.orientation.lock){document.documentElement.requestFullscreen&&await document.documentElement.requestFullscreen().catch(()=>{});await screen.orientation.lock('landscape').catch(()=>{})}}catch(e){}
-cards=shuffle(words);idx=0;res=[];time=60;show('play');state='count';let n=3;$('timer').textContent='';$('word').textContent='Place on forehead…';
+cards=Array.isArray(words)&&words[0]&&words[0].name?shuffle(words):shuffle(words);idx=0;res=[];time=60;show('play');state='count';let n=3;$('timer').textContent='';$('word').classList.remove('trivia');$('word').textContent='Place on forehead…';
+$('hint').textContent=lastCat==='FC Cincinnati Trivia'?'Friends say the top line. Wearer gives the answer. Right = ✔ · Left = pass':'Tap right = ✔ correct · Tap left = ✖ pass';
 setTimeout(function cd(){if(n>0){$('word').textContent=n;beep(600,.15);n--;setTimeout(cd,1000)}else{beep(900,.3);state='play';neutral=true;next();$('timer').textContent=time;tmr=setInterval(()=>{time--;$('timer').textContent=time;if(time<=5&&time>0)beep(500,.08);if(time<=0)end()},1000)}},1500)}
-function next(){if(idx>=cards.length){end();return}$('word').textContent=cards[idx]}
-function answer(ok){if(state!=='play'||lock)return;lock=true;res.push({w:cards[idx],ok});const p=$('play');p.classList.add(ok?'flash-g':'flash-o');$('word').textContent=ok?'CORRECT!':'PASS';sfx(ok);
+function next(){if(idx>=cards.length){end();return}const c=cards[idx];
+if(c&&c.name){const sayName=Math.random()<.5;c.sayName=sayName;const say=sayName?c.name:c.num,ans=sayName?c.num:c.name;
+$('word').classList.add('trivia');$('word').innerHTML='<div class="say"><span class="lbl">(Say)</span><div class="val"></div></div><div class="ans"><span class="lbl">(Answer)</span><div class="val"></div></div>';
+$('word').querySelector('.say .val').textContent=say;$('word').querySelector('.ans .val').textContent=ans}
+else{$('word').classList.remove('trivia');$('word').textContent=c}}
+function answer(ok){if(state!=='play'||lock)return;lock=true;const c=cards[idx];const label=(c&&c.name)?(c.name+' #'+c.num):c;res.push({w:label,ok});const p=$('play');p.classList.add(ok?'flash-g':'flash-o');$('word').classList.remove('trivia');$('word').textContent=ok?'CORRECT!':'PASS';sfx(ok);
 setTimeout(()=>{p.classList.remove('flash-g','flash-o');idx++;lock=false;if(state==='play')next()},800)}
 function end(){if(state!=='play'&&state!=='count')return;state='end';clearInterval(tmr);beep(300,.6);navigator.vibrate&&navigator.vibrate(300);try{wake&&wake.release();wake=null}catch(e){}
 const c=res.filter(r=>r.ok).length;saveRound(c);$('score').textContent=(playerName||'Player')+': '+c;$('results').innerHTML=res.map(r=>`<li class="${r.ok?'ok':'ps'}">${r.ok?'✔':'✖'} ${r.w.replace(/</g,'&lt;')}</li>`).join('')||'<li>No cards played</li>';show('end')}
