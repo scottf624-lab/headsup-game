@@ -49,19 +49,21 @@ function show(s){document.querySelectorAll('.screen').forEach(e=>e.classList.rem
 function getCustom(){return (localStorage.getItem('hu_custom')||'').split('\n').map(s=>s.trim()).filter(Boolean)}
 const cats=$('cats');Object.keys(D).concat(['Custom']).forEach((c,i)=>{const b=document.createElement('button');b.className='cat';b.textContent=c;b.style.background=COLORS[i%COLORS.length];b.onclick=()=>pick(c);cats.appendChild(b)});
 if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')$('perm').style.display='inline-block';
-$('perm').onclick=async()=>{try{const r=await DeviceOrientationEvent.requestPermission();$('perm').textContent=r==='granted'?'Tilt Enabled ✔':'Tilt denied – use taps';}catch(e){$('perm').textContent='Tilt unavailable – use taps'}};
+$('perm').onclick=async()=>{try{ensureAudio();const r=await DeviceOrientationEvent.requestPermission();$('perm').textContent=r==='granted'?'Tilt Enabled ✔':'Tilt denied – use taps';}catch(e){$('perm').textContent='Tilt unavailable – use taps'}};
 async function askPerm(){if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){try{await DeviceOrientationEvent.requestPermission()}catch(e){}}}
 function pick(c){if(c==='Custom'){$('customText').value=localStorage.getItem('hu_custom')||'';show('custom');return}lastCat=c;start(D[c].split(','))}
 $('saveCustom').onclick=()=>{localStorage.setItem('hu_custom',$('customText').value);const w=getCustom();if(w.length<1){alert('Add some words first!');return}lastCat='Custom';start(w)};
 $('backCustom').onclick=()=>show('menu');
 function shuffle(a){a=[...new Set(a)];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a}
-function beep(f,d){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;o.connect(g);g.connect(ac.destination);g.gain.setValueAtTime(.3,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);o.start();o.stop(ac.currentTime+d)}catch(e){}}
-async function start(words){askPerm();beep(1,.01);try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
+function ensureAudio(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}return ac}
+function beep(f,d,type){try{const ctx=ensureAudio();if(!ctx)return;const o=ctx.createOscillator(),g=ctx.createGain();o.type=type||'sine';o.frequency.value=f;o.connect(g);g.connect(ctx.destination);g.gain.setValueAtTime(.38,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+d);o.start();o.stop(ctx.currentTime+d)}catch(e){}}
+function sfx(ok){if(ok){beep(660,.12,'sine');setTimeout(()=>beep(990,.22,'sine'),90);navigator.vibrate&&navigator.vibrate([40,30,90])}else{beep(220,.18,'square');setTimeout(()=>beep(160,.32,'square'),140);navigator.vibrate&&navigator.vibrate([180,60,180])}}
+async function start(words){askPerm();ensureAudio();beep(1,.01);try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen')}catch(e){}
 try{if(screen.orientation&&screen.orientation.lock){document.documentElement.requestFullscreen&&await document.documentElement.requestFullscreen().catch(()=>{});await screen.orientation.lock('landscape').catch(()=>{})}}catch(e){}
 cards=shuffle(words);idx=0;res=[];time=60;show('play');state='count';let n=3;$('timer').textContent='';$('word').textContent='Place on forehead…';
 setTimeout(function cd(){if(n>0){$('word').textContent=n;beep(600,.15);n--;setTimeout(cd,1000)}else{beep(900,.3);state='play';neutral=true;next();$('timer').textContent=time;tmr=setInterval(()=>{time--;$('timer').textContent=time;if(time<=5&&time>0)beep(500,.08);if(time<=0)end()},1000)}},1500)}
 function next(){if(idx>=cards.length){end();return}$('word').textContent=cards[idx]}
-function answer(ok){if(state!=='play'||lock)return;lock=true;res.push({w:cards[idx],ok});const p=$('play');p.classList.add(ok?'flash-g':'flash-o');$('word').textContent=ok?'CORRECT!':'PASS';beep(ok?880:220,ok?.2:.35);navigator.vibrate&&navigator.vibrate(ok?80:[40,40,40]);
+function answer(ok){if(state!=='play'||lock)return;lock=true;res.push({w:cards[idx],ok});const p=$('play');p.classList.add(ok?'flash-g':'flash-o');$('word').textContent=ok?'CORRECT!':'PASS';sfx(ok);
 setTimeout(()=>{p.classList.remove('flash-g','flash-o');idx++;lock=false;if(state==='play')next()},800)}
 function end(){if(state!=='play'&&state!=='count')return;state='end';clearInterval(tmr);beep(300,.6);navigator.vibrate&&navigator.vibrate(300);try{wake&&wake.release();wake=null}catch(e){}
 const c=res.filter(r=>r.ok).length;$('score').textContent='Score: '+c;$('results').innerHTML=res.map(r=>`<li class="${r.ok?'ok':'ps'}">${r.ok?'✔':'✖'} ${r.w.replace(/</g,'&lt;')}</li>`).join('')||'<li>No cards played</li>';show('end')}
